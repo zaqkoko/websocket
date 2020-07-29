@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Spring Framework : 자바 생태계에서 가장 대중적인 응용프로그램 개발 프레임워크.
+						의존성 주입(DI, Dependency Injection), 제어의 역전(IoC, Inversion of Control)은 스프링에서 가장 중요한 특징 중 하나이다.
+
+	 Spring Boot는 Maven, Gradle 같은 빌드 관리 툴을 통해 의존성을 관리한다.
+ 	 Spring Boot는 Spring 프레임워크를 사용하는 프로젝트를 아주 간편하게 셋업할 수 있는 서브 프로젝트다.
+ 	 빌드 후에 Jar 생성, 별도의 서버 설치 없이 embeded tomcat이 자동으로 실행 된다.
+ 	 기존의 Spring에서 하듯 복잡한 설정이 아닌 통합된 설정파일인 application.yml으로 간단하게 사용이 가능.
+
+	 Maven이란? - 자바 프로젝트의 빌드(build)를 자동화 해주는 빌드 툴이다.
+	 즉, 자바 소스를 compile하고 package해서 deploy하는 일을 자동화 해주는 것.
+
+	 Maven이 참조하는 설정 파일
+	 1) settings.xml
+	 2) pom.xml : POM(Project Object Model)을 설정하는 부분으로 프로젝트 내 빌드 옵션을 설정하는 부분이다. -->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>  <!-- modelVersion 4.0.0 = maven의 pom.xml의 모델 버전이다 -->
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>2.3.2.RELEASE</version> <!-- 스프링 부트 2.3.2 버전 -->
+		<relativePath/>
+	</parent>
+		<groupId>com.yuhantrum</groupId> <!-- 프로젝트 조직 및 그룹명(yuhantrum) -->
+		<artifactId>websocket</artifactId>
+		<version>0.0.1-SNAPSHOT</version> <!-- 애플리케이션 버전. 접미사로 SNAPSHOT이 붙으면 개발단계라는 의미라고 한다. -->
+	<name>websocket</name> <!-- 프로젝트 명 -->
+	<description>.</description> <!-- 프로젝트 설명 -->
+
+	<properties> <!-- pom.xml에서 중복해서 사용되는 설정(상수) 값들을 지정해 놓는 부분. 다른 파일(위치)에서 ${...}로 표기해 사용할 수 있다. -->
+		<java.version>1.8</java.version> <!-- java.version에 1.8을 적용하고 다른 위치에서 ${java.version}이라고 쓰면 1.8이라고 쓴 것과 같다. -->
+	</properties>
+
+	<dependencies>
+		<!-- 웹소켓 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-websocket</artifactId>
+		</dependency>
+
+		<!-- 웹 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+
+		<!-- View JSP / 자바 서블릿(자바를 사용하여 웹페이지를 동적으로 생성하는 서버측 프로그램)-->
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>jstl</artifactId>
+		</dependency>
+
+		<!-- View JSP / 위의 jstl과 아래 jasper을 의존성에 포함시켜줘야 JSP파일의 구동이 가능하다.-->
+		<dependency>
+			<groupId>org.apache.tomcat.embed</groupId>
+			<artifactId>tomcat-embed-jasper</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- Spring Boot Starter Test.
+			 JUnit, Hamcrest, Mockito를 포함한 라이브러리로 Spring Boot Application을 테스트하기위한 것이다. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.junit.vintage</groupId>
+					<artifactId>junit-vintage-engine</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<!-- 실행가능한 jar을 만드려면 필요함 -->
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>
