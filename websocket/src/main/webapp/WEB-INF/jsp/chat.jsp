@@ -3,6 +3,8 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8"
          pageEncoding="UTF-8"%>
 
+<!-- JSON이란? - JavaScript Object Notation의 약자로, 브라우저와 서버 사이에서 오가는 데이터의 형식이다. -->
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -36,7 +38,12 @@
             overflow: auto;
         }
         /* 채팅 폰트 */
-        .chating p{
+        .chating .me{
+            color: #000;
+            text-align: right;
+        }
+
+        .chating .others{
             color: #000;
             text-align: left;
         }
@@ -60,9 +67,9 @@
     // 닉네임 입력하면 wsOpen() 호출
     function wsOpen(){
 
-        // 새로운 웹소켓 오브젝트를 생성하여 ws url을 넣고 접속. (ws://localhost:3000/chating)
+        // 새로운 웹소켓 오브젝트를 생성하여 ws url을과 chating + 방번호값 넣고 접속.
         // 반환값 ws 오브젝트의 ws.readystate의 값은 CONNECTING 이며, 연결이 도면 OPEN으로 변경된다.
-        ws = new WebSocket("ws://" + location.host + "/chating");
+        ws = new WebSocket("ws://" + location.host + "/chating/" + $("#roomNumber").val());
         console.log(ws);
 
         // wsEvt() 호출
@@ -88,10 +95,52 @@
             var msg = data.data;
 
             // 만약 msg가 null이 아니고 msg의 좌우 공백을 제거 했을때 공백이 아니라면
-            if(msg != null && msg.trim() != ''){
+            if (msg != null && msg.trim() != '') {
+
+                // 서버에서 데이터를 JSON 형태로 전달해주기 때문에 받은 데이터를 JSON.parse를 활용하여 파싱을 한다.
+                // JSON.parse() 메소드는 JSON 문자열의 구문을 분석하고, 그 결과에서 JS의 값이나 객체를 생성한다.
+                var d = JSON.parse(msg);
+
+                // 상대방과 자기자신을 구분하기 위해 구현
+
+                // 파싱한 객체의 type값을 확인하여 getId면
+                if (d.type == "getId") {
+
+                    // 초기 설정된 값이므로 채팅방에 값을 입력하는 것이 아닌 추가한 태그 sessionId에 값을 세팅한다
+
+                    // sessionId가 null이 아니라면 d.sessionId, null이라면 ""
+                    var si = d.sessionId != null ? d.sessionId : "";
+
+                    // 만약 공백이 아니라면
+                    if (si != '') {
+
+                        // SessionId 값에 sessionId값 넣어주기
+                        $("#sessionId").val(si);
+                    }
+                }
+
+                // 만약 파싱한 객체의 type값이 message라면
+                else if (d.type == "message") {
+
+                    // 최초 닉네임을 입력하고 연결됐을 때, 발급받은 sessionId 값을 비교하여 같다면 내가 보낸 것임.
+                    // 만약 파싱한 객체의 sessionId 값이 sessionId 값과 같다면
+                    if (d.sessionId == $("#sessionId").val()) {
+
+                        // 나로 발송
+                        $("#chating").append("<p class='me'>나 : " + d.msg + "</p>");
+
+                        // 아니라면
+                    } else {
+
+                        // 그 외
+                        $("#chating").append("<p class='others'>" + d.userName + " : " + d.msg + "</p>");
+                    }
+                } else {
+                    console.warn("unknown type")
+                }
 
                 // chating id값의 마지막에 구문을 추가한다.
-                $("#chating").append("<p>" + msg + "</p>");
+                // $("#chating").append("<p>" + msg + "</p>");
             }
         }
 
@@ -106,9 +155,11 @@
         });
     }
 
-    // 연결 귾기
+    // 연결 끊기
     function close() {
         ws.onclose;
+        console.log("a");
+        alert("연결이 끊어졌습니다");
     }
 
     // 닉네임 입력 안 하면 입력하라고 알림창
@@ -138,12 +189,22 @@
     // 메세지 발송
     function send() {
 
+        // JSON 형태로 발신
+        var option={
+            type : "message", // type값을 message로 구분하여 발송
+            roomNumber : $("#roomNumber").val(),
+            sessionId : $("#sessionId").val(),
+            userName : $("#userName").val(),
+            msg : $("#chatting").val()
+        }
+
         // userName, chatting id값을 각각 uN, msg 변수에 넣어줌.
-        var uN = $("#userName").val();
-        var msg = $("#chatting").val();
+        //var uN = $("#userName").val();
+        //var msg = $("#chatting").val();
 
         // 서버에 데이터 전송(WebSocket 오브젝트의 send() 호출)
-        ws.send(uN+" : "+msg);
+        // JSON.stringify(value, replacer, space) - value 필수(JSON문자열로 변환할 값 - 배열, 객체, 숫자, 문자 등이 될 수 있다.)
+        ws.send(JSON.stringify(option))
 
         // 메세지 값 공백으로 바꿔주기.
         $('#chatting').val("");
@@ -151,7 +212,11 @@
 </script>
 <body>
 <div id="container" class="container">
-    <h1>웹소켓 채팅</h1>
+    <h1>${roomName}의 채팅방</h1>
+    <!-- 세션값을 저장하기 위한 input 태그 -->
+    <input type="hidden" id="sessionId" value="">
+    <input type="hidden" id="roomNumber" value="${roomNumber}">
+
     <div id="chating" class="chating">
     </div>
 
@@ -173,7 +238,7 @@
             </tr>
             <tr>
                 <td></td>
-                <th><button onclick="close()" id="closeBtn">끊기</button> </th>
+                <th><button onclick="close()" id="closeBtn">끊기</button></th>
             </tr>
         </table>
     </div>
