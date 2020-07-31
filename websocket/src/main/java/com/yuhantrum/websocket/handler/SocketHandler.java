@@ -118,16 +118,17 @@ public class SocketHandler extends TextWebSocketHandler { // 구현체에 등록
     @Override        // 바이너리 메세지 발송
     public void handleBinaryMessage(WebSocketSession session, BinaryMessage message){
 
+        // ByteBuffer = 채널이 데이터를 읽고 쓰는 버퍼는 모두 ByteBuffer.
         ByteBuffer byteBuffer = message.getPayload();
-        String fileName = "temp.jpg";
+        String fileName = "temp.jpg"; // temp.jpg로 저장
         File dir = new File(FILE_UPLOAD_PATH);
         if(!dir.exists()){
-            dir.mkdirs();
+            dir.mkdirs(); // mkdirs() = 한 번에 여러 디렉토리 생성. (mkdir() = 한 번에 하나의 디렉토리만 생성)
         }
 
         File file = new File(FILE_UPLOAD_PATH, fileName);
-        FileOutputStream out = null;
-        FileChannel outChannel = null;
+        FileOutputStream out = null; // FileOutputStream = 파일을 바이트 단위의 출력을 내보냄.
+        FileChannel outChannel = null; // 정적 메소드인 open() 을 호출해 얻거나, IO 의 FileInputStream, FileOutputStream의 getChannel()을 호출해서 얻을 수 있다.
 
         try{
             byteBuffer.flip(); // byteBuffer를 읽기 위해 셋팅
