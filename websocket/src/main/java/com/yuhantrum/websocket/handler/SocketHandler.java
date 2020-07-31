@@ -5,12 +5,17 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.springframework.stereotype.Component;
+import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -27,6 +32,12 @@ public class SocketHandler extends TextWebSocketHandler { // 구현체에 등록
     // HashMap<String, WebSocketSession> sessionMap = new HashMap<>(); // 웹소켓 세션을 담아둘 맵
     List<HashMap<String, Object>> rls = new ArrayList<>(); // 웹소켓 세션을 담아둘 리스트 -- roomListSessions
 
+
+    // 파일 업로드
+    private static final String FILE_UPLOAD_PATH = "C:/DOWNLOAD/";
+    static int fileUploadIdx = 0;
+    static String fileUploadSession = "";
+
     // 방구분, 해당 방에 존재하는 session값들에게만 메세지를 발송
 
     @Override // 해당 메소드가 부모 클래스에 있는 메소드를 재정의했다는 것을 명시적으로 선언
@@ -36,13 +47,14 @@ public class SocketHandler extends TextWebSocketHandler { // 구현체에 등록
         /* 현재의 방번호를 가져오고 방번호+세션정보를 관리하는 rls리스트 컬렉션에서 데이터를 조회한 후에
          * 해당 HashMap을 임시 맵에 파싱하여 roomNumber의 키값을 제외한 모든 세션 키값들을 웹소켓을 통해 메세지를 보내준다.*/
 
-        String msg = message.getPayload();
+        String msg = message.getPayload(); // JSON 형태의 String 메시지를 받는다.
 
         // message.getPayload()를 통해 받은 문자열을 Json 파싱을 위해 obj에 저장
-        JSONObject obj = jsonToObjectParser(msg);
+        JSONObject obj = jsonToObjectParser(msg); // JSON 데이터를 JSONObject로 파싱
 
         // rN에 roomNumber 문자열로 저장
-        String rN = (String)obj.get("roomNumber");
+        String rN = (String)obj.get("roomNumber"); // 방의 번호를 받는다.
+        String msgType = (String)obj.get("type"); // 메시지 타입을 확인한다.
         HashMap<String, Object> temp = new HashMap<String, Object>();
 
         // 세션 리스트의 사이즈가 0보다 크면
@@ -59,26 +71,32 @@ public class SocketHandler extends TextWebSocketHandler { // 구현체에 등록
 
                     // 해당 방번호의 세션리스트의 존재하는 모든 object값을 가져온다.
                     temp = rls.get(i);
+                    fileUploadIdx = i;
+                    fileUploadSession = (String)obj.get("sessionId");
                     break;
                 }
             }
 
-            // 해당 방의 세션들만 찾아서 메세지를 발송
-            for(String k : temp.keySet()){
+            // 메시지타입이 파일업로드가 아닐 때만 전송
+            if(!msgType.equals("fileUpload")) {
 
-                // // 방번호일 경우에는 건너뜀
-                if(k.equals("roomNumber")){
-                    continue;
-                }
+                // 해당 방의 세션들만 찾아서 메세지를 발송
+                for (String k : temp.keySet()) {
 
-                WebSocketSession wss = (WebSocketSession) temp.get(k);
+                    // // 방번호일 경우에는 건너뜀
+                    if (k.equals("roomNumber")) {
+                        continue;
+                    }
 
-                // wss가 있다면
-                if(wss != null){
-                    try{
-                        wss.sendMessage(new TextMessage(obj.toJSONString()));
-                    } catch(IOException e){
-                        e.printStackTrace();
+                    WebSocketSession wss = (WebSocketSession) temp.get(k);
+
+                    // wss가 있다면
+                    if (wss != null) {
+                        try {
+                            wss.sendMessage(new TextMessage(obj.toJSONString()));
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
                     }
                 }
             }
@@ -97,6 +115,59 @@ public class SocketHandler extends TextWebSocketHandler { // 구현체에 등록
         }*/
     }
 
+    @Override        // 바이너리 메세지 발송
+    public void handleBinaryMessage(WebSocketSession session, BinaryMessage message){
+
+        ByteBuffer byteBuffer = message.getPayload();
+        String fileName = "temp.jpg";
+        File dir = new File(FILE_UPLOAD_PATH);
+        if(!dir.exists()){
+            dir.mkdirs();
+        }
+
+        File file = new File(FILE_UPLOAD_PATH, fileName);
+        FileOutputStream out = null;
+        FileChannel outChannel = null;
+
+        try{
+            byteBuffer.flip(); // byteBuffer를 읽기 위해 셋팅
+            out = new FileOutputStream(file, true); // 생성을 위해 OutputStream을 연다.
+            outChannel = out.getChannel(); // 채널을 연다.
+            byteBuffer.compact(); // 파일 복사
+            outChannel.write(byteBuffer); // 파일을 쓴다.
+        }catch (Exception e){
+            e.printStackTrace();
+        }finally {
+            try{
+                if(out != null){
+                    out.close();
+                }
+                if(outChannel != null){
+                    outChannel.close();
+                }
+            }catch (IOException e){
+                e.printStackTrace();
+            }
+        }
+
+        byteBuffer.position(0); // 파일을 저장하면서 position 값이 변경되었으므로 0으로 초기화.
+
+        // 파일쓰기가 끝나면 이미지를 발송
+        HashMap<String, Object> temp = rls.get(fileUploadIdx);
+
+        for(String k : temp.keySet()){
+            if(k.equals("roomNumber")){
+                continue;
+            }
+            WebSocketSession wss = (WebSocketSession) temp.get(k);
+            try{
+                wss.sendMessage(new BinaryMessage(byteBuffer)); // 초기화된 버퍼를 발송한다.
+            }catch (IOException e){
+                e.printStackTrace();
+            }
+        }
+    }
+
     // suppressWarnings - 컴파일러가 경고하는 내용 중 제외시킬 때 사용(unchecked) - 검증되지않은 연산자관련 경고 억제
     @SuppressWarnings("unchecked")
     @Override
@@ -107,10 +178,15 @@ public class SocketHandler extends TextWebSocketHandler { // 구현체에 등록
         super.afterConnectionEstablished(session);
 
         boolean flag = false;
+        // getUri() = 웹 Resource 를 얻는다. Uri는 요청 대상 Resource를 식별하는 정보를 포함한다.
         String url = session.getUri().toString();
         System.out.println(url);
+
+        // /chating/ 으로 split (split() = 문자열 분할)
         String roomNumber = url.split("/chating/")[1];
-        int idx = rls.size(); // 방 사이즈 조사
+
+        // 방 사이즈 조사
+        int idx = rls.size();
         if(rls.size() > 0){
             for(int i=0; i<rls.size(); i++){
                 String rN = (String) rls.get(i).get("roomNumber");
@@ -165,5 +241,7 @@ public class SocketHandler extends TextWebSocketHandler { // 구현체에 등록
         }
         return obj;
     }
+
+
 
 }

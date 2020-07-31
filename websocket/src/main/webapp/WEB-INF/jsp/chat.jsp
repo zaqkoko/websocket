@@ -56,6 +56,16 @@
         #myMsg{
             display: none;
         }
+        .msgImg{
+            width: 200px;
+            height: 120px;
+        }
+        .clearBoth{
+            clear: both;
+        }
+        .img{
+            float:right;
+        }
     </style>
 </head>
 
@@ -69,6 +79,7 @@
 
         // 새로운 웹소켓 오브젝트를 생성하여 ws url을과 chating + 방번호값 넣고 접속.
         // 반환값 ws 오브젝트의 ws.readystate의 값은 CONNECTING 이며, 연결이 도면 OPEN으로 변경된다.
+        // 웹소켓 전송시 현재 방의 번호를 넘겨서 보낸다.
         ws = new WebSocket("ws://" + location.host + "/chating/" + $("#roomNumber").val());
         console.log(ws);
 
@@ -95,10 +106,11 @@
             var msg = data.data;
 
             // 만약 msg가 null이 아니고 msg의 좌우 공백을 제거 했을때 공백이 아니라면
-            if (msg != null && msg.trim() != '') {
+            if (msg != null && msg.type != '') {
 
                 // 서버에서 데이터를 JSON 형태로 전달해주기 때문에 받은 데이터를 JSON.parse를 활용하여 파싱을 한다.
                 // JSON.parse() 메소드는 JSON 문자열의 구문을 분석하고, 그 결과에서 JS의 값이나 객체를 생성한다.
+                // 파일 업로드가 아닌 경우 메시지를 뿌려준다.
                 var d = JSON.parse(msg);
 
                 // 상대방과 자기자신을 구분하기 위해 구현
@@ -141,6 +153,17 @@
 
                 // chating id값의 마지막에 구문을 추가한다.
                 // $("#chating").append("<p>" + msg + "</p>");
+            }
+            else{
+                // Blob() = 이미지, 사운드, 비디오와 같은 멀티미디어 데이터를 다룰 때 사용
+                // 대개 데이터의 크기(byte) 및 MIME 타입을 알아내거나, 데이터 송수신을 위한 작은 Blob 객체로 나누는 등의 작업에 사용한다.
+                // 첫번째 인수로 ArrayBuffer, ArrayBufferView, Blob(File), DOMString 등을 사용할 수 있다.
+
+                // 파일 업로드한 경우 업로드한 파일을 채팅방에 뿌려준다
+                var url = URL.createObjectURL(new Blob([msg]));
+
+                // 파일 보내는 구문
+                $("#chating").append("<div class='img'><img class='msgImg' src="+url+"></div><div class='clearBoth'></div>");
             }
         }
 
@@ -209,12 +232,39 @@
         // 메세지 값 공백으로 바꿔주기.
         $('#chatting').val("");
     }
+
+    // 파일 발송
+    function fileSend(){
+        // querySelector = 리턴되는 값은 인자를 받아 일치하는 baseElement의 자손의 엘리먼트를 가져온다. 이 엘리멘트를 가져오면 js로 html의 값들을 변경할 수 있다.
+        var file = document.querySelector("#fileUpload").files[0];
+        var fileReader = new FileReader();
+        fileReader.onload = function(){
+            var param = {
+                type : "fileUpload",
+                file : file,
+                roomNumber : $("#roomNumber").val(),
+                sessionId : $("#sessionId").val(),
+                msg : $("#chatting").val(),
+                userName : $("#userName").val()
+            }
+            ws.send(JSON.stringify(param)); // 파일 보내기 전 메시지를 보내서 파일을 보냄을 명시한다.
+
+            // arrayBuffer = 바이트로 구성된 배열. 메모리에 확보되는 고정 길이의 이진 데이터용 버퍼를 나타냄.
+            // arrayBuffer를 사용하여 Ajax 또는 WebSocket을 통해 바이너리 데이터를 서버와 브라우저간에 송/수신을 할 수 있다.
+            arrayBuffer = this.result;
+            ws.send(arrayBuffer); // 파일 소켓 전송
+        };
+        // arrayBuffer 읽기
+        fileReader.readAsArrayBuffer(file);
+    }
 </script>
 <body>
 <div id="container" class="container">
     <h1>${roomName}의 채팅방</h1>
     <!-- 세션값을 저장하기 위한 input 태그 -->
     <input type="hidden" id="sessionId" value="">
+
+    <!-- 방번호를 저장하기 위한 input 태그 -->
     <input type="hidden" id="roomNumber" value="${roomNumber}">
 
     <div id="chating" class="chating">
@@ -235,6 +285,11 @@
                 <th>메세지</th>
                 <th><input id="chatting" style="text-align: center" placeholder="보내실 메세지를 입력하세요."></th>
                 <th><button onclick="send()" id="sendBtn">보내기</button></th>
+            </tr>
+            <tr>
+                <th>업로드</th>
+                <th><input type="file" id="fileUpload"></th>
+                <th><button onclick="fileSend()" id="sendFIleBtn">업로드</button></th>
             </tr>
             <tr>
                 <td></td>
